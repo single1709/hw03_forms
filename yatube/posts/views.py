@@ -78,7 +78,6 @@ def post_create(request):
 @login_required
 def post_edit(request, post_id):
     template = 'posts/create_edit_post.html'
-    template_redirect = f'/profile/{request.user}/'
     is_edit = True
     post = get_object_or_404(Post, pk=post_id)
     if request.user != post.author:
