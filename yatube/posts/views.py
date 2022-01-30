@@ -1,6 +1,7 @@
 from django.core.paginator import Paginator
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404, redirect
+
 from .models import Post, User, Group
 from .forms import PostForm
 
@@ -19,14 +20,12 @@ def index(request):
 
 def group_posts(request, slug):
     template = 'posts/group_list.html'
-    title = "Записи сообщества"
     group = get_object_or_404(Group, slug=slug)
     posts = group.posts.all()
     paginator = Paginator(posts, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     context = {
-        'title': title,
         'group': group,
         'page_obj': page_obj,
     }
@@ -35,14 +34,12 @@ def group_posts(request, slug):
 
 def profile(request, username):
     template = 'posts/profile.html'
-    title = "Профайл пользователя"
-    user = User.objects.get(username=username)
+    user = get_object_or_404(User, username=username)
     posts = Post.objects.filter(author=user)
     paginator = Paginator(posts, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     context = {
-        'title': title,
         'author': user,
         'page_obj': page_obj,
     }
@@ -51,10 +48,11 @@ def profile(request, username):
 
 def post_detail(request, post_id):
     template = 'posts/post_detail.html'
-    posts_count = Post.objects.all()
-    post = posts_count.get(pk=post_id)
+    posts = Post.objects.all()
+    post = posts.get(pk=post_id)
+    count_posts_author = posts.filter(author=post.author).count()
     context = {
-        'posts_count': posts_count,
+        'count_posts_author': count_posts_author,
         'post': post,
     }
     return render(request, template, context)
@@ -63,13 +61,12 @@ def post_detail(request, post_id):
 @login_required
 def post_create(request):
     template = 'posts/create_edit_post.html'
-    template_redirect = f'/profile/{request.user}/'
     if request.method == 'POST':
-        form = PostForm(request.POST)
+        form = PostForm(request.POST or None)
         if form.is_valid():
             form.instance.author = request.user
             form.save()
-            return redirect(template_redirect)
+            return redirect('posts:profile', request.user)
         return render(request, template, {'form': form})
     form = PostForm()
     return render(request, template, {'form': form})
@@ -78,12 +75,11 @@ def post_create(request):
 @login_required
 def post_edit(request, post_id):
     template = 'posts/create_edit_post.html'
-    is_edit = True
     post = get_object_or_404(Post, pk=post_id)
     if request.user != post.author:
         return redirect('posts:post_detail', post.id)
     if request.method == 'POST':
-        form = PostForm(request.POST, instance=post)
+        form = PostForm(request.POST or None, instance=post)
         if form.is_valid():
             form.save()
             return redirect('posts:post_detail', post.id)
@@ -92,6 +88,6 @@ def post_edit(request, post_id):
     context = {
         'form': form,
         'post': post,
-        'is_edit': is_edit,
+        'is_edit': True,
     }
     return render(request, template, context)
